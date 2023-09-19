@@ -415,7 +415,7 @@ plt.savefig('Squared_Psi_E=0.pdf')
 plt.show()
 
 # Calculate the effective range and print relevant information
-eff_range       =   (1./2.)*np.trapz(linear_function(xs, a_fit, b_fit)*linear_function(xs, a_fit, b_fit)-psi_scatt*psi_scatt)
+eff_range       =   2*np.trapz(linear_function(xs, a_fit, b_fit)*linear_function(xs, a_fit, b_fit)-psi_scatt*psi_scatt)
 print(f"Scattering length is {-b_fit/a_fit} and the Effective range r_0 is {eff_range}")
 print(f"E_start = {E_start},  E_midpoint = {E_midpoint},  E_stop = {E_stop}")
 
