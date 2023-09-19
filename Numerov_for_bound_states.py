@@ -6,22 +6,20 @@ from scipy.optimize import curve_fit
 C0 = -67.583747
 r_star = 0.77187385 # fm e MeV
 
-# in a real program i woul dmake a module for the constants, but here... not worth the time
-#r_star = 1./4.
-#C0	   = -505.1500
+# in a real program i would make a module for the constants, but here not worth the time
+# r_star = 1./4.
+# C0	   = -505.1500
 
-#physical parameters, same as before
+# Physical parameters
 m           = 938.919/2.0        # reduced mass in MeV
 hbarc       = 197.327            # (solita costante di struttura)
 twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readial equation (check the reduced radial problem o fQM1)
-
-#print(1./twomu_on_h2)
 
 # Define the linear function to fit
 def linear_function(x, a, b):
     return a * x + b
 
-def V(r):  # I kept the potential outside to change it more handly
+def V(r):
         return C0 * np.exp(-0.25*r**2/r_star**2)
         
 def find_index_with_min_difference(vector, x_mid):
@@ -117,8 +115,6 @@ def standard_numerov(psi_s, xs, n, h, k):
 
     return psi_s, xs  # Return updated psi_s and xs arrays
 
-    """two point along the x axis are shared by the left and right integrations in 
-    order to compute the log derivative in the same point"""
 
 
 def both_extreme_numerov(psi_s, xs, b, h, k):
@@ -420,7 +416,7 @@ plt.show()
 
 # Calculate the effective range and print relevant information
 eff_range       =   (1./2.)*np.trapz(linear_function(xs, a_fit, b_fit)*linear_function(xs, a_fit, b_fit)-psi_scatt*psi_scatt)
-print(f"Scattering length is {b_fit} and the Effective range r_0 is {eff_range}")
+print(f"Scattering length is {-b_fit/a_fit} and the Effective range r_0 is {eff_range}")
 print(f"E_start = {E_start},  E_midpoint = {E_midpoint},  E_stop = {E_stop}")
 
 # Plot the ground state and scattering state wavefunctions
