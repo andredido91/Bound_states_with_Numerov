@@ -3,12 +3,16 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 #pot parameters
-C0 = -67.583747
-r_star = 0.77187385 # fm e MeV
+#C0 = -67.583747
+#r_star = 0.77187385 # fm e MeV
 
 # in a real program i would make a module for the constants, but here not worth the time
-# r_star = 1./4.
-# C0	   = -505.1500
+#r_star = 1./4.
+#C0	   = -505.1500
+
+#pot parameters
+C0 = -67.583747
+r_star = 0.77187385 # fm e MeV
 
 # Physical parameters
 m           = 938.919/2.0        # reduced mass in MeV
@@ -20,8 +24,8 @@ def linear_function(x, a, b):
     return a * x + b
 
 def V(r):
-        return C0 * np.exp(-0.25*r**2/r_star**2)
-        
+        return C0 * np.exp(-0.25*(r)**2/r_star**2) + 7.99/r**2     # 7.7 -> 7.95
+
 def find_index_with_min_difference(vector, x_mid):
     """
     Find the index j of the vector for which the difference between the j-th entry and x_mid is minimal.
@@ -367,8 +371,8 @@ both_extreme    =   False
 E_midpoint      =   -2.221390027552843          # Fixed to a specified value since already calculated
 
 # Run Numerov algorithm to calculate the ground state wavefunction
-psi_ground, xs  =   get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, 0)
-psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
+#psi_ground, xs  =   get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, 0)
+#psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
 
 
 
@@ -380,24 +384,43 @@ psi_scatt, xs   =   get_wavefunction(E_scatt, Rmin, Rmax, nsteps, both_extreme, 
 
 # Select data points after x = R for fitting the asymptotical behaviour of psi
 i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
-psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
-R               =   xs[i_node+100]
+#psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
+R               =   20#xs[i_node+100]
 xs_fit          =   xs[xs >= R]
 psi_fit         =   psi_scatt[xs >= R]
 
-print(f"the area inside the node of psi scatt is {np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))}")
+print(f"the area inside the node of psi scatt is {np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node], xs[:i_node]))}")
 # Fit the linear function to the selected data points
 params, covariance = curve_fit(linear_function, xs_fit, psi_fit)
 
 # Extract the fitting parameters
 a_fit, b_fit    =   params
 
+# Implement the normalization factor that send psi_outer (the linear_funtion) to 1 at x = 0
+alpha           =   1/(b_fit)
+psi_outer       =   alpha * linear_function(xs, a_fit, b_fit)
+psi_scatt       =   alpha * psi_scatt
+print(psi_outer)
+print(psi_scatt)
+
+plot_potential = True
+
+if plot_potential == True:
+    plt.plot(xs, V(xs), label='V(r)')
+    plt.xlabel('x [fm^{-1}]')
+    plt.ylabel('V(r) MeV')
+    plt.ylim(np.min(V(xs)-2), 20)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('V(r).pdf')
+    plt.show()
 # Plot the original psi and the fitted linear function
 plt.plot(xs, psi_scatt, label='Psi at E = 0')
-plt.plot(xs, linear_function(xs, a_fit, b_fit), color='red', label='Asymptotic behaviour of psi')
-plt.xlabel('x')
-plt.ylabel('psi(x)')
+plt.plot(xs, psi_outer, color='red', label='Asymptotic behaviour of psi')
+plt.xlabel('x [fm^{-1}]')
+plt.ylabel('Psi(x)')
 plt.legend()
+plt.grid(True)
 plt.savefig('Psi_E=0.pdf')
 plt.show()
 
@@ -407,20 +430,26 @@ print('b:', b_fit)
 
 # Plot the original data and the fitted linear function
 plt.plot(xs, psi_scatt*psi_scatt, label='Squared Psi at E = 0')
-plt.plot(xs, linear_function(xs, a_fit, b_fit)*linear_function(xs, a_fit, b_fit), color='red', label='Squared Asymptotic behaviour of psi')
+plt.plot(xs, psi_outer*psi_outer, color='red', label='Squared Asymptotic behaviour of psi')
 plt.xlabel('x')
 plt.ylabel('psi(x)')
 plt.legend()
+plt.grid(True)
 plt.savefig('Squared_Psi_E=0.pdf')
 plt.show()
+print(np.trapz(psi_outer))
+print(np.trapz(psi_scatt))
 
 # Calculate the effective range and print relevant information
-eff_range       =   2*np.trapz(linear_function(xs, a_fit, b_fit)*linear_function(xs, a_fit, b_fit)-psi_scatt*psi_scatt)
+
+eff_r           =   psi_outer*psi_outer - psi_scatt*psi_scatt
+print(f"max of eff_r is {np.max(eff_r)}, minimum = {np.min(eff_r)}, eff_r = {eff_r}")
+eff_range       =   2*np.trapz(eff_r, xs)
 print(f"Scattering length is {-b_fit/a_fit} and the Effective range r_0 is {eff_range}")
 print(f"E_start = {E_start},  E_midpoint = {E_midpoint},  E_stop = {E_stop}")
 
 # Plot the ground state and scattering state wavefunctions
-plt.plot(xs, psi_ground, label=f'Solution at E = {E_midpoint:.6f}+-{E_error}')
+#plt.plot(xs, psi_ground, label=f'Solution at E = {E_midpoint:.6f}+-{E_error}')
 plt.plot(xs, psi_scatt, label=f'Solution at E = {E_scatt}')
 plt.xlabel('r')
 plt.ylabel('psi(r)')
