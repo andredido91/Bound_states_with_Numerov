@@ -12,7 +12,9 @@ from scipy.optimize import curve_fit
 
 #pot parameters
 #C0 = -67.583747
-r_star = 0.77187385 # fm e MeV
+#r_star = 0.77187385 # fm e MeV
+
+r_star = [10,5,2,1,0.5,0.1,0.05,0.01]
 
 # Physical parameters
 m           = 938.919/2.0        # reduced mass in MeV
@@ -23,7 +25,7 @@ twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readi
 def linear_function(x, a, b):
     return a * x + b
 
-def V(r, C0):
+def V(r, C0, r_star):
     return C0 * np.exp(-0.25*(r)**2/r_star**2)
 
 def find_index_with_min_difference(vector, x_mid):
@@ -51,7 +53,7 @@ def find_index_with_min_difference(vector, x_mid):
 def fit_and_compute_r0_a0(xs, psi_scatt, C0):
     # Select data points after x = R for fitting the asymptotical behaviour of psi
     #i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
-    R               =   20 #xs[i_node+100]
+    R               =   0.9*Rmax #xs[i_node+100]
     xs_fit          =   xs[xs >= R]
     psi_fit         =   psi_scatt[xs >= R]
 
@@ -124,7 +126,7 @@ def standard_numerov(psi_s, xs, n, h, k):
     return psi_s, xs  # Return updated psi_s and xs arrays
 
 
-def get_wavefunction(E_set,C0, a,b,n):
+def get_wavefunction(E_set,C0, r_star_i, a,b,n):
     """
     Compute the wavefunction using the Numerov algorithm based on the provided parameters.
 
@@ -149,7 +151,8 @@ def get_wavefunction(E_set,C0, a,b,n):
     # Set the energy value based on the algorithm choice
     E = E_set
 
-    V_lambda = lambda r : V(r, C0)
+    V_lambda = lambda r : V(r, C0, r_star_i)
+
     # Define the k and f functions based on the provided potential
     def k(r):
         return twomu_on_h2*(E-V_lambda(r))
@@ -163,7 +166,7 @@ def get_wavefunction(E_set,C0, a,b,n):
 
     
 
-def numerov(E_set, C0_start, C0_stop, Error_scatt, max_iter):
+def numerov(E_set, C0_start, C0_stop, r_star_i, Error_scatt, max_iter):
     """
     Perform the Numerov algorithm with energy bisection to find the wavefunction.
 
@@ -195,8 +198,8 @@ def numerov(E_set, C0_start, C0_stop, Error_scatt, max_iter):
             C0_midpoint = C0_start - (C0_start-C0_stop)/2
 
         # Standard Numerov algorithm
-        eff_range, scattering_length, psi, xs = get_wavefunction(E, C0_midpoint, Rmin,Rmax, nsteps) # tra -10 e -20 psi cambia segno
-        if abs(scattering_length) < Error_scatt:
+        eff_range, scattering_length, psi, xs = get_wavefunction(E, C0_midpoint, r_star_i, Rmin, Rmax, nsteps) # tra -10 e -20 psi cambia segno
+        if 1/abs(scattering_length) < Error_scatt:
             break
         # Check the wavefunction at Rmax to determine the next energy guess
         if scattering_length<0:  
@@ -212,12 +215,6 @@ def numerov(E_set, C0_start, C0_stop, Error_scatt, max_iter):
     return C0_midpoint, eff_range, scattering_length, psi, xs
 
     
-# Try between 10000 and 1000000
-nsteps  = 2000000
-Rmax    = 40
-Rmin    = 0
-
-
 # ----------- little debug to check the method
 debug = False
 if (debug):
@@ -241,10 +238,8 @@ if (debug):
 # -------------
 
 
-# Main Numerov algorithm to search for bound states or the zero energy wavefunction
-# E_error is the required accuracy for the energy of the bound states
-# Since E_error = L/2^{N}, the number of steps required for a prescribed energy are given by Maxiter = np.log2(L/R) + 1 as an integer
-# Error_fun is the error wanted for the wavefunction to be zero at Rmax --> Psi(Rmax) = 0 +- Error_fun
+# Main algorithm
+nsteps  = 2000000
 
 C0_stop          =   -100
 C0_start         =   -0.01
@@ -256,18 +251,38 @@ print(f"max iter = {max_iter}")
 # Set the scattering energy
 E_process         =   0.
 
+C0s             = []
+eff_ranges      = []
+scat_lengths    = []
 # Run Numerov algorithm to calculate the scattering state wavefunction, C0, a_0, r_0
-C0_fitted, eff_range, scattering_length, psi, xs   =   numerov(E_process, C0_start, C0_stop, Error_scatt, max_iter)
+for i, r_star_i in enumerate(r_star):
+    Rmax    = 40 + 4 * r_star_i
+    Rmin    = 0
+    C0_fitted, eff_range, scattering_length, psi, xs   =   numerov(E_process, C0_start, C0_stop, r_star_i, Error_scatt, max_iter)
+    C0s             += [C0_fitted]
+    eff_ranges      += [eff_range]
+    scat_lengths    += [scattering_length]
 
+    plot_potential = True
+    if plot_potential == True:
+        plt.title(f"C0 = {C0_fitted:.8f}, r_0 = {eff_range:.8f}, a_0 = {scattering_length:.8f}")
+        plt.plot(xs, V(xs , C0_fitted, r_star_i), label='V(r) [MeV]')
+        plt.xlabel('x [fm^{-1}]')
+        plt.ylabel('V(r) MeV')
+        plt.ylim(np.min(V(xs , C0_fitted, r_star_i)-2), 5)
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'Fitted_Potential_rstar={r_star_i}.pdf')
+        plt.close()
 
-plot_potential = True
-if plot_potential == True:
-    plt.title(f"C0 = {C0_fitted:.8f}, r_0 = {eff_range:.8f}, a_0 = {scattering_length:.8f}")
-    plt.plot(xs, V(xs , C0_fitted), label='V(r) [MeV]')
-    plt.xlabel('x [fm^{-1}]')
-    plt.ylabel('V(r) MeV')
-    plt.ylim(np.min(V(xs , C0_fitted)-2), 20)
+plot_eff_ranges_and_scatt_lengths = True
+if plot_eff_ranges_and_scatt_lengths == True:
+    plt.title(f"r_0(rstar)")
+    plt.plot(r_star, eff_ranges, label='r_0(rstar) [fm^{-1}]')
+    plt.xlabel('r_star [fm^{-1}]')
+    plt.ylabel('r_0 MeV')
+    plt.ylim(np.min(eff_ranges-1), np.max(eff_ranges+2))
     plt.legend()
     plt.grid(True)
-    plt.savefig('V(r).pdf')
+    plt.savefig('r0(rstar).pdf')
     plt.show()
