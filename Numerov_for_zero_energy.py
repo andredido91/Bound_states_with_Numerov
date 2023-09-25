@@ -380,7 +380,7 @@ E_midpoint      =   -2.221390027552843          # Fixed to a specified value sin
 
 
 # Set the scattering energy
-E_scatt         =   2.0
+E_scatt         =   0.
 
 # Run Numerov algorithm to calculate the scattering state wavefunction
 psi_scatt, xs   =   get_wavefunction(E_scatt, Rmin, Rmax, nsteps, both_extreme, 0)

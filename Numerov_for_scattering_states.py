@@ -23,8 +23,11 @@ twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readi
 def linear_function(x, a, b):
     return a * x + b
 
+# Define the free wave approximation at large distance to fit
+def sinusoidal_function(E, x,A,delta):
+    return A*np.sin(np.sqrt(twomu_on_h2*E)*x+delta)
+
 def V(r):
-    #return 0
     return C0 * np.exp(-0.25*(r)**2/r_star**2)     # 7.7 -> 7.95
 
 #def V(r):
@@ -195,7 +198,7 @@ def both_extreme_numerov(psi_s, xs, b, h, k):
     return psi_s, xs, diff
 
 
-def get_wavefunction(E_guess,a,b,n, both_extreme, i_x_mid):
+def get_wavefunction(E_guess,a,b,n, both_extreme, i_x_mid, pot_activation):
     """
     Compute the wavefunction using the Numerov algorithm based on the provided parameters.
 
@@ -216,19 +219,20 @@ def get_wavefunction(E_guess,a,b,n, both_extreme, i_x_mid):
     h = (b-a)/(n-1)
     xs = a + (np.arange(n))*h    # or (np.arange(n)+0.5 )*h
     psi_s = np.zeros(n)
+    if pot_activation == "potential":
+        # Set the energy value based on the algorithm choice
+        if both_extreme == False:
+            E = E_guess             # to be used with standard_numerov
+        if both_extreme == True:
+            E = V(xs[i_x_mid])      # to be used with both_extreme_numerov
 
-    # Set the energy value based on the algorithm choice
-    if both_extreme == False:
-        E = E_guess             # to be used with standard_numerov
-    if both_extreme == True:
-        E = V(xs[i_x_mid])      # to be used with both_extreme_numerov
-    
-
-    # Define the k and f functions based on the provided potential
-    def k(r):
-        return twomu_on_h2*(E-V(r))
-    def f(r,psi_s):
-        return -k(r)*psi_s
+        # Define the k and f functions based on the provided potential
+        def k(r):
+            return twomu_on_h2*(E-V(r))
+    if pot_activation == "no potential":
+        E = E_guess
+        def k(r):
+            return twomu_on_h2*(E)
 
     # Use the appropriate Numerov algorithm based on the choice
     if both_extreme == False:
@@ -328,7 +332,7 @@ def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
     
 # Try between 10000 and 1000000
 nsteps  = 2000000
-Rmax    = 40
+Rmax    = 60
 Rmin    = 0
 
 
@@ -369,42 +373,134 @@ max_iter        =   int(np.log2(L/E_error)//1)+1
 #max_iter       =   100
 both_extreme    =   False
 
-# Calculate the initial energy midpoint for the Numerov algorithm
-#E_midpoint, psi_ground, xs = numerov( E_start, E_stop, Error_fun ,max_iter , both_extreme)
-E_midpoint      =   -2.221390027552843          # Fixed to a specified value since already calculated
 
-# Run Numerov algorithm to calculate the ground state wavefunction
-#psi_ground, xs  =   get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, 0)
-#psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
-
-
+E_scatt = np.arange(0.0001,10.0001, 0.5)
+E_scatt = np.concatenate((E_scatt,np.arange(10.0001,100.0001, 10)),axis=0)
 
 # Set the scattering energy
-E_scatt         =   2.0
+k_scatt = []
+deltas = []
 
-# Run Numerov algorithm to calculate the scattering state wavefunction
-psi_scatt, xs   =   get_wavefunction(E_scatt, Rmin, Rmax, nsteps, both_extreme, 0)
+# Test the algorithm that find the phase
+test = False
+if test == True:
+    E_test          = 1 #MeV
 
-# Select data points after x = R for fitting the asymptotical behaviour of psi
-i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
-#psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
-R               =   20 #xs[i_node+100]
-xs_fit          =   xs[xs >= R]
-psi_fit         =   psi_scatt[xs >= R]
+    psi_0    , xs   =   get_wavefunction(E_test, Rmin, Rmax, nsteps, both_extreme, 0, "no potential")
 
-print(f"the area inside the node of psi scatt is {np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node], xs[:i_node]))}")
-# Fit the linear function to the selected data points
-params, covariance = curve_fit(linear_function, xs_fit, psi_fit)
+    psi_test        = sinusoidal_function(E_test, xs, 1, np.pi/2)
+    psi_zero_phase  = sinusoidal_function(E_test, xs, 1, 0)
 
-# Extract the fitting parameters
-a_fit, b_fit    =   params
+    R2              = Rmax
+    R1              = 0.9*Rmax
+    R1_node         = find_index_with_min_difference(xs,R1)
+    R2_node         = find_index_with_min_difference(xs,R2)
+    ks              = np.sqrt(twomu_on_h2*E_test)
+    phase           = np.arctan((psi_test[R1_node]*np.sin(ks*R2)-psi_test[R2_node]*np.sin(ks*R1))/(psi_test[R2_node]*np.cos(ks*R1)-psi_test[R1_node]*np.cos(ks*R2)))
+    print(f"test Phase set to Pi: measured = {phase/np.pi} in pi unit")
 
-# Implement the normalization factor that send psi_outer (the linear_funtion) to 1 at x = 0
-alpha           =   1/(b_fit)
-psi_outer       =   alpha * linear_function(xs, a_fit, b_fit)
-psi_scatt       =   alpha * psi_scatt
-print(psi_outer)
-print(psi_scatt)
+    plt.title(f"Psi with V(r), phase/pi = {phase/np.pi}")
+    plt.plot(xs, psi_test, label=f'Psi with fixed phase (pi/2)')
+    plt.plot(xs, psi_zero_phase, label=f'Psi with no phase')
+    plt.scatter(R1,psi_test[R1_node])
+    plt.scatter(R2,psi_test[R2_node])
+    plt.xlabel('x [fm^{-1}]')
+    plt.ylabel('Psi(x)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    plt.close()
+
+for i, Ei in enumerate(E_scatt):
+
+    # Run Numerov algorithm to calculate the scattering wavefunction with and without potential
+    psi_scatt, xs   =   get_wavefunction(Ei, Rmin, Rmax, nsteps, both_extreme, 0, "potential")
+    psi_0    , xs   =   get_wavefunction(Ei, Rmin, Rmax, nsteps, both_extreme, 0, "no potential")
+
+
+    # Select data points after x = R for fitting the asymptotical behaviour of psi
+    i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
+    #psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
+    R               =   30 #xs[i_node+100]
+    xs_scatt_fit    =   xs[xs >= R]
+    psi_scatt_fit   =   psi_scatt[xs >= R]
+
+    # Fit the zero potential function to the selected data points
+    xs_0_fit          =   xs[xs >= R]
+    psi_0_fit         =   psi_0[xs >= R]
+    lambda_zero = lambda x, A, delta : sinusoidal_function(Ei, x, A, delta)
+    #print(lambda_scatt(xs, 1, 2))
+    params, covariance = curve_fit(lambda_zero, xs_0_fit, psi_0_fit)
+    # Extract the fitting parameters
+    A_zero_fit, delta_zero_fit      =   params
+    #print(params)
+
+    # Fit the scattering function to the selected data points
+    lambda_scatt        = lambda x, A, delta : sinusoidal_function(Ei, x, A, delta)
+    #print(lambda_scatt(xs, 1, 2))
+    params, covariance  = curve_fit(lambda_scatt, xs_scatt_fit, psi_scatt_fit)
+    # Extract the fitting parameters
+    A_scatt_fit, delta_scatt_fit    =   params
+    #print(f"params = {params}")
+
+    R2              = Rmax
+    R1              = 0.9*Rmax
+    R1_node         = find_index_with_min_difference(xs,R1)
+    R2_node         = find_index_with_min_difference(xs,R2)
+    ks=np.sqrt(twomu_on_h2*Ei)
+    k_scatt += [ks]
+    phase           = np.arctan((psi_scatt[R1_node]*np.sin(ks*R2)-psi_scatt[R2_node]*np.sin(ks*R1))/(psi_scatt[R2_node]*np.cos(ks*R1)-psi_scatt[R1_node]*np.cos(ks*R2)))
+    kcotd_i = ks*(1/np.tan(phase))
+
+    print(f"delta = {phase}, kcotdelta = {kcotd_i} at k = {ks}")
+    if i == 0:
+        scattering_length   = -1/kcotd_i
+        print(f"scatering length is {scattering_length}")
+    deltas += [phase]
+    if i == 1:
+        effective_range     = (1/k_scatt[0])*(k_scatt[1]*(1 / np.tan(deltas[1]))-k_scatt[0]*(1 / np.tan(deltas[0])))/(k_scatt[1]-k_scatt[0])
+        print(f"effective range is {effective_range}")
+
+    # Plot the original psi and the fitted linear function
+    compare = True
+    if compare == True:
+
+        plt.title(f"Psi with V(r), delta = {phase}")
+        plt.plot(xs, psi_scatt, label=f'Psi with V(r)')
+        plt.plot(xs, lambda_scatt(xs,A_scatt_fit,delta_scatt_fit), label=f'Fit of psi with V(r)')
+        #print(f"max of psi_scatt is {np.max(psi_scatt)}, minimum = {np.min(psi_scatt)}, mean = {np.mean(psi_scatt)}")
+        #print(f"max of lambda_scatt(xs,A_scatt_fit,delta_scatt_fit) is {np.max(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, minimum = {np.min(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, mean = {np.mean(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}")
+
+        plt.plot(xs, psi_0, color='red', label='Psi without V(r)')
+        plt.plot(xs_0_fit, lambda_zero(xs_0_fit,A_zero_fit,delta_zero_fit), label=f'Fit of psi without V(r)')
+        # print(f"max of psi_0 is {np.max(psi_0)}, minimum = {np.min(psi_0)}, mean = {np.mean(psi_0)}")
+        # print(f"max of lambda_zero(xs,A_zero_fit,delta_zero_fit) is {np.max(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, minimum = {np.min(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, mean = {np.mean(lambda_zero(xs,A_zero_fit,delta_zero_fit))}")
+
+        plt.xlabel('x [fm^{-1}]')
+        plt.ylabel('Psi(x)')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'Psi_E={Ei}.pdf')
+        #plt.show()
+        plt.close()
+
+
+
+plot_scatt = True
+
+kcotdelta = k_scatt*(1/np.tan(deltas))
+if plot_scatt == True:
+    plt.scatter(0, kcotdelta[0], label=f'Scattering length = -1/k*cotdelta = {scattering_length}')  # aggiungere "calcolato in k \sim 0"
+
+    plt.plot(k_scatt, kcotdelta, label='kcotdelta')
+    plt.xlabel('k [fm^{-1}]')
+    plt.ylabel('kcotdelta ')
+    plt.ylim(np.min(kcotdelta-1), np.max(kcotdelta+1))
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('kcotdelta(k).pdf')
+    plt.show()
+
 
 plot_potential = False
 
@@ -412,51 +508,30 @@ if plot_potential == True:
     plt.plot(xs, V(xs), label='V(r) [MeV]')
     plt.xlabel('x [fm^{-1}]')
     plt.ylabel('V(r) MeV')
-    plt.ylim(np.min(V(xs)-2), 20)
+    plt.ylim(np.min(V(xs)-2), np.max(V(xs)+2))
     plt.legend()
     plt.grid(True)
     plt.savefig('V(r).pdf')
     plt.show()
 
 # Plot the original psi and the fitted linear function
-plt.plot(xs, psi_scatt, label='Psi at E = 0')
-plt.plot(xs, psi_outer, color='red', label='Asymptotic behaviour of psi')
-plt.xlabel('x [fm^{-1}]')
-plt.ylabel('Psi(x)')
-plt.legend()
-plt.grid(True)
-plt.savefig('Psi_E=0.pdf')
-plt.show()
+compare = False
+if compare == True:
 
-print('Fitted parameters:')
-print('a:', a_fit)
-print('b:', b_fit)
+    plt.title(f"Psi with V(r)")
+    plt.plot(xs, psi_scatt, label=f'Psi with V(r)')
+    plt.plot(xs_scatt_fit, lambda_scatt(xs_scatt_fit,A_scatt_fit,delta_scatt_fit), label=f'Fit of psi with V(r)')
+    print(f"max of psi_scatt is {np.max(psi_scatt)}, minimum = {np.min(psi_scatt)}, mean = {np.mean(psi_scatt)}")
+    print(f"max of lambda_scatt(xs,A_scatt_fit,delta_scatt_fit) is {np.max(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, minimum = {np.min(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, mean = {np.mean(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}")
 
-# Plot the original data and the fitted linear function
-plt.plot(xs, psi_scatt*psi_scatt, label='Squared Psi at E = 0')
-plt.plot(xs, psi_outer*psi_outer, color='red', label='Squared Asymptotic behaviour of psi')
-plt.xlabel('x [fm^{-1}]')
-plt.ylabel('psi(x)')
-plt.legend()
-plt.grid(True)
-plt.savefig('Squared_Psi_E=0.pdf')
-plt.show()
-print(np.trapz(psi_outer))
-print(np.trapz(psi_scatt))
+    plt.plot(xs, psi_0, color='red', label='Psi without V(r)')
+    plt.plot(xs_0_fit, lambda_zero(xs_0_fit,A_zero_fit,delta_zero_fit), label=f'Fit of psi without V(r)')
+    print(f"max of psi_0 is {np.max(psi_0)}, minimum = {np.min(psi_0)}, mean = {np.mean(psi_0)}")
+    print(f"max of lambda_zero(xs,A_zero_fit,delta_zero_fit) is {np.max(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, minimum = {np.min(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, mean = {np.mean(lambda_zero(xs,A_zero_fit,delta_zero_fit))}")
 
-# Calculate the effective range and print relevant information
-eff_r           =   psi_outer*psi_outer - psi_scatt*psi_scatt
-print(f"max of eff_r is {np.max(eff_r)}, minimum = {np.min(eff_r)}, eff_r = {eff_r}")
-eff_range       =   2*np.trapz(eff_r, xs)
-print(f"Scattering length is {-b_fit/a_fit} and the Effective range r_0 is {eff_range} \n")
-print(f"Prediction of the bound state energy from the scattering length: E_bs = {1/((-b_fit/a_fit)**2 * twomu_on_h2)}")
-print(f"E_start = {E_start},  E_midpoint = {E_midpoint},  E_stop = {E_stop}")
-
-# Plot the ground state and scattering state wavefunctions
-#plt.plot(xs, psi_ground, label=f'Solution at E = {E_midpoint:.6f}+-{E_error}')
-plt.plot(xs, psi_scatt, label=f'Solution at E = {E_scatt}')
-plt.xlabel('r')
-plt.ylabel('psi(r)')
-plt.legend()
-plt.grid(True)
-plt.show()
+    plt.xlabel('x [fm^{-1}]')
+    plt.ylabel('Psi(x)')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('Psi_E=0.pdf')
+    plt.show()
