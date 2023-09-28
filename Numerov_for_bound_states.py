@@ -1,7 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import matplotlib as mpl
+from matplotlib.lines import Line2D
+from matplotlib import cycler
 
+pgf_with_latex =  {
+    "pgf.texsystem": "pdflatex",        # change this if using xetex or lautex
+    "text.usetex": True,                # use LaTeX to write all text
+    "font.family": "serif",
+    "font.serif": [],                   # blank entries should cause plots 
+    "font.sans-serif": [],              # to inherit fonts from the document
+    "font.monospace": [],
+    "axes.labelsize": 14,               # LaTeX default is 10pt font.
+    "font.size": 15,
+    "legend.fontsize": 14,               # Make the legend/label fonts 
+    "xtick.labelsize": 14,               # a little smaller
+    "ytick.labelsize": 14,
+    "pgf.preamble": "\n".join([ # plots will use this preamble
+        r"\usepackage{amsmath}",
+        r"\usepackage{amsfonts}",
+        r"\usepackage{dsfont}",
+        #r"\usepackage{amssymb}",
+        ])}
+
+mpl.rcParams.update(pgf_with_latex)
+
+plt.rcParams.update({
+    'font.size': 15,
+    'text.usetex': True,
+    'text.latex.preamble': r'\usepackage{amsfonts}',
+    'text.latex.preamble': r'\usepackage{dsfont}'
+})
 #pot parameters
 #C0 = -67.583747
 #r_star = 0.77187385 # fm e MeV
@@ -105,7 +135,7 @@ def standard_numerov(psi_s, xs, n, h, k):
 
     # Initialize initial conditions
     psi_s[0] = 0
-    psi_s[1] = 1
+    psi_s[1] = 0.01
 
     # Iterate through the range of n
     for j in range(n):
@@ -302,10 +332,10 @@ def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
         elif both_extreme == False:
             i_x_mid = 0
             psi, xs = get_wavefunction(E_midpoint,Rmin,Rmax, nsteps, both_extreme, i_x_mid) # tra -10 e -20 psi cambia segno
+            #psi = psi/np.trapz(psi,xs)
             print("E = ",E_midpoint,"  Psi[Rmax] = ",psi[-1])
             if abs(psi[-1]) < Error_fun:
                 break
-
             # Check the wavefunction at Rmax to determine the next energy guess
             if psi[-1]>0:  
                 E_start = E_midpoint
@@ -370,93 +400,36 @@ max_iter        =   int(np.log2(L/E_error)//1)+1
 both_extreme    =   False
 
 # Calculate the initial energy midpoint for the Numerov algorithm
-#E_midpoint, psi_ground, xs = numerov( E_start, E_stop, Error_fun ,max_iter , both_extreme)
-E_midpoint      =   -2.221390027552843          # Fixed to a specified value since already calculated
+E_midpoint, psi_ground, xs = numerov( E_start, E_stop, Error_fun ,max_iter , both_extreme)
+#E_midpoint      =   -2.221390027552843          # Fixed to a specified value since already calculated
 
 # Run Numerov algorithm to calculate the ground state wavefunction
-#psi_ground, xs  =   get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, 0)
-#psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
+psi_ground, xs  =   get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, 0)
+psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
 
 
-
-# Set the scattering energy
-E_scatt         =   2.0
-
-# Run Numerov algorithm to calculate the scattering state wavefunction
-psi_scatt, xs   =   get_wavefunction(E_scatt, Rmin, Rmax, nsteps, both_extreme, 0)
-
-# Select data points after x = R for fitting the asymptotical behaviour of psi
-i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
-#psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
-R               =   20 #xs[i_node+100]
-xs_fit          =   xs[xs >= R]
-psi_fit         =   psi_scatt[xs >= R]
-
-print(f"the area inside the node of psi scatt is {np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node], xs[:i_node]))}")
-# Fit the linear function to the selected data points
-params, covariance = curve_fit(linear_function, xs_fit, psi_fit)
-
-# Extract the fitting parameters
-a_fit, b_fit    =   params
-
-# Implement the normalization factor that send psi_outer (the linear_funtion) to 1 at x = 0
-alpha           =   1/(b_fit)
-psi_outer       =   alpha * linear_function(xs, a_fit, b_fit)
-psi_scatt       =   alpha * psi_scatt
-print(psi_outer)
-print(psi_scatt)
-
-plot_potential = False
+plot_potential = True
 
 if plot_potential == True:
-    plt.plot(xs, V(xs), label='V(r) [MeV]')
-    plt.xlabel('x [fm^{-1}]')
-    plt.ylabel('V(r) MeV')
+    plt.plot(xs, V(xs), label=r'$V(r)$ [$MeV$]')
+    plt.xlabel(r'$r$ [$fm$]')
+    plt.ylabel(r'$V(r)$ $MeV$')
     plt.ylim(np.min(V(xs)-2), 20)
     plt.legend()
     plt.grid(True)
-    plt.savefig('V(r).pdf')
+    plt.savefig('bound_states/V(r).pdf')
     plt.show()
 
-# Plot the original psi and the fitted linear function
-plt.plot(xs, psi_scatt, label='Psi at E = 0')
-plt.plot(xs, psi_outer, color='red', label='Asymptotic behaviour of psi')
-plt.xlabel('x [fm^{-1}]')
-plt.ylabel('Psi(x)')
-plt.legend()
-plt.grid(True)
-plt.savefig('Psi_E=0.pdf')
-plt.show()
 
-print('Fitted parameters:')
-print('a:', a_fit)
-print('b:', b_fit)
-
-# Plot the original data and the fitted linear function
-plt.plot(xs, psi_scatt*psi_scatt, label='Squared Psi at E = 0')
-plt.plot(xs, psi_outer*psi_outer, color='red', label='Squared Asymptotic behaviour of psi')
-plt.xlabel('x [fm^{-1}]')
-plt.ylabel('psi(x)')
-plt.legend()
-plt.grid(True)
-plt.savefig('Squared_Psi_E=0.pdf')
-plt.show()
-print(np.trapz(psi_outer))
-print(np.trapz(psi_scatt))
-
-# Calculate the effective range and print relevant information
-eff_r           =   psi_outer*psi_outer - psi_scatt*psi_scatt
-print(f"max of eff_r is {np.max(eff_r)}, minimum = {np.min(eff_r)}, eff_r = {eff_r}")
-eff_range       =   2*np.trapz(eff_r, xs)
-print(f"Scattering length is {-b_fit/a_fit} and the Effective range r_0 is {eff_range} \n")
-print(f"Prediction of the bound state energy from the scattering length: E_bs = {1/((-b_fit/a_fit)**2 * twomu_on_h2)}")
-print(f"E_start = {E_start},  E_midpoint = {E_midpoint},  E_stop = {E_stop}")
-
+latex_equation = r"$E_{gs}=$" + str(round(E_midpoint,5))
+   
 # Plot the ground state and scattering state wavefunctions
-#plt.plot(xs, psi_ground, label=f'Solution at E = {E_midpoint:.6f}+-{E_error}')
-plt.plot(xs, psi_scatt, label=f'Solution at E = {E_scatt}')
-plt.xlabel('r')
-plt.ylabel('psi(r)')
+plt.figure(figsize=(10, 8)) # set figure size
+plt.plot(xs, psi_ground, label=r'$\Psi_{gs}$')
+plt.xlabel(r'$r$ $fm$')
+plt.ylabel(r'$\Psi(r)$')
+plt.text(0.60, 0.05, f'{latex_equation}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
 plt.legend()
 plt.grid(True)
+plt.savefig('bound_states/Psi_ground.pdf')
 plt.show()

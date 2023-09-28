@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 356, in <module>
+    C0_fitted, eff_range, scattering_length, psi, xs, C0_save_start, C0_save_stop =   numerov(E_process, C0_start, C0_stop, r_star_i, Error_scatt, max_iter)
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 250, in numerov
+    eff_range, scattering_length, psi, xs = get_wavefunction(E, C0_stop, r_star_i, Rmin, Rmax, nsteps,j) # tra -10 e -20 psi cambia segno
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 214, in get_wavefunction
+    psi_scatt, xs = standard_numerov(psi_s, xs, n, h, k)
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 170, in standard_numerov
+    a = (1+((h**2)/12)*k(xs[j+1]))
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 209, in k
+    return twomu_on_h2*(E-V_lambda(r))
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 205, in <lambda>
+    V_lambda = lambda r : V(r, C0, r_star_i)
+  File "/home/andrea/Documenti/GitProject/Bound states with Numerov/Bound_states_with_Numerov/Numerov_for_zero_energy_inverted_to_fit.py", line 60, in V
+    return C0 * np.exp(-0.25*(r)**2/r_star**2)
+KeyboardInterrupt

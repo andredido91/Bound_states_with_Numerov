@@ -1,6 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import matplotlib as mpl
+from matplotlib.lines import Line2D
+from matplotlib import cycler
+
+pgf_with_latex =  {
+    "pgf.texsystem": "pdflatex",        # change this if using xetex or lautex
+    "text.usetex": True,                # use LaTeX to write all text
+    "font.family": "serif",
+    "font.serif": [],                   # blank entries should cause plots 
+    "font.sans-serif": [],              # to inherit fonts from the document
+    "font.monospace": [],
+    "axes.labelsize": 14,               # LaTeX default is 10pt font.
+    "font.size": 15,
+    "legend.fontsize": 14,               # Make the legend/label fonts 
+    "xtick.labelsize": 14,               # a little smaller
+    "ytick.labelsize": 14,
+    "pgf.preamble": "\n".join([ # plots will use this preamble
+        r"\usepackage{amsmath}",
+        r"\usepackage{amsfonts}",
+        r"\usepackage{dsfont}",
+        #r"\usepackage{amssymb}",
+        ])}
+
+mpl.rcParams.update(pgf_with_latex)
+
+plt.rcParams.update({
+    'font.size': 15,
+    'text.usetex': True,
+    'text.latex.preamble': r'\usepackage{amsfonts}',
+    'text.latex.preamble': r'\usepackage{dsfont}'
+})
 
 #pot parameters
 #C0 = -67.583747
@@ -186,11 +217,12 @@ def both_extreme_numerov(psi_s, xs, b, h, k):
     psi_s = psi_s/np.trapz(psi_s)
 
     # Plot the wave functions
+    plt.figure(figsize=(10, 8)) # set figure size
     plt.plot(xs, psi_s, label=f'psi_s' )
     plt.plot(xs_L, psi_s_L, label=f'psi_s_L' )
     plt.plot(xs_R, psi_s_R, label=f'psi_s_R' )
-    plt.xlabel('r')
-    plt.ylabel('psi(r)')
+    plt.xlabel(r'r')
+    plt.ylabel(r'$\Psi(r)$')
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -331,39 +363,11 @@ def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
     
     
 # Try between 10000 and 1000000
-nsteps  = 2000000
-Rmax    = 60
+nsteps  = 1600000
+Rmax    = 50
 Rmin    = 0
 
-
-# ----------- little debug to check the method
-debug = False
-if (debug):
-    Etest   = -0.
-    psi, xs = get_wavefunction(Etest,Rmin,Rmax, nsteps)
-    plt.plot(xs, psi, label='Initial guess, E = '+str(Etest))
-    plt.xlabel('r')
-    plt.ylabel('psi(r)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    Etest   = -3
-    psi, xs = get_wavefunction(Etest,Rmin,Rmax, nsteps)
-    plt.plot(xs, psi, label='Initial guess, E = '+str(Etest))
-    plt.xlabel('r')
-    plt.ylabel('psi(r)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-# -------------
-
-
 # Main Numerov algorithm to search for bound states or the zero energy wavefunction
-# E_error is the required accuracy for the energy of the bound states
-# Since E_error = L/2^{N}, the number of steps required for a prescribed energy are given by Maxiter = np.log2(L/R) + 1 as an integer
-# Error_fun is the error wanted for the wavefunction to be zero at Rmax --> Psi(Rmax) = 0 +- Error_fun
-
 E_stop          =   -10
 E_start         =   -0
 E_error         =   0.00000002
@@ -374,10 +378,19 @@ max_iter        =   int(np.log2(L/E_error)//1)+1
 both_extreme    =   False
 
 
-E_scatt = np.arange(0.0001,10.0001, 0.5)
-E_scatt = np.concatenate((E_scatt,np.arange(10.0001,100.0001, 10)),axis=0)
+
+
+
+
 
 # Set the scattering energy
+k_scatt = np.arange(0.005,0.035, 0.01)
+k_scatt = np.concatenate((k_scatt,np.arange(0.1,1.4, 0.1)),axis=0)
+
+E_scatt = (1/twomu_on_h2) * (k_scatt * k_scatt)
+print(f"E_scatt = {E_scatt}, k_scatt = {k_scatt}")
+
+
 k_scatt = []
 deltas = []
 
@@ -398,14 +411,14 @@ if test == True:
     ks              = np.sqrt(twomu_on_h2*E_test)
     phase           = np.arctan((psi_test[R1_node]*np.sin(ks*R2)-psi_test[R2_node]*np.sin(ks*R1))/(psi_test[R2_node]*np.cos(ks*R1)-psi_test[R1_node]*np.cos(ks*R2)))
     print(f"test Phase set to Pi: measured = {phase/np.pi} in pi unit")
-
+    plt.figure(figsize=(10, 8)) # set figure size
     plt.title(f"Psi with V(r), phase/pi = {phase/np.pi}")
-    plt.plot(xs, psi_test, label=f'Psi with fixed phase (pi/2)')
-    plt.plot(xs, psi_zero_phase, label=f'Psi with no phase')
+    plt.plot(xs, psi_test, label=r'$\Psi(r)$ with fixed phase (pi/2)')
+    plt.plot(xs, psi_zero_phase, label=r'$\Psi(r)$ with no phase')
     plt.scatter(R1,psi_test[R1_node])
     plt.scatter(R2,psi_test[R2_node])
-    plt.xlabel('x [fm^{-1}]')
-    plt.ylabel('Psi(x)')
+    plt.xlabel(r'$r$ [$fm$]')
+    plt.ylabel(r'$\Psi(r)$')
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -430,7 +443,7 @@ for i, Ei in enumerate(E_scatt):
     psi_0_fit         =   psi_0[xs >= R]
     lambda_zero = lambda x, A, delta : sinusoidal_function(Ei, x, A, delta)
     #print(lambda_scatt(xs, 1, 2))
-    params, covariance = curve_fit(lambda_zero, xs_0_fit, psi_0_fit)
+    params, covariance = curve_fit(lambda_zero, xs_0_fit[::1000], psi_0_fit[::1000])
     # Extract the fitting parameters
     A_zero_fit, delta_zero_fit      =   params
     #print(params)
@@ -438,7 +451,7 @@ for i, Ei in enumerate(E_scatt):
     # Fit the scattering function to the selected data points
     lambda_scatt        = lambda x, A, delta : sinusoidal_function(Ei, x, A, delta)
     #print(lambda_scatt(xs, 1, 2))
-    params, covariance  = curve_fit(lambda_scatt, xs_scatt_fit, psi_scatt_fit)
+    params, covariance  = curve_fit(lambda_scatt, xs_scatt_fit[::1000], psi_scatt_fit[::1000])
     # Extract the fitting parameters
     A_scatt_fit, delta_scatt_fit    =   params
     #print(f"params = {params}")
@@ -457,30 +470,32 @@ for i, Ei in enumerate(E_scatt):
         scattering_length   = -1/kcotd_i
         print(f"scatering length is {scattering_length}")
     deltas += [phase]
-    if i == 1:
-        effective_range     = (1/k_scatt[0])*(k_scatt[1]*(1 / np.tan(deltas[1]))-k_scatt[0]*(1 / np.tan(deltas[0])))/(k_scatt[1]-k_scatt[0])
+    if i == 2:
+        der_0     = (k_scatt[1]*(1 / np.tan(deltas[1]))-k_scatt[0]*(1 / np.tan(deltas[0])))/(k_scatt[1]-k_scatt[0])
+        der_1     = (k_scatt[2]*(1 / np.tan(deltas[2]))-k_scatt[1]*(1 / np.tan(deltas[1])))/(k_scatt[2]-k_scatt[1])
+        effective_range = (der_1-der_0)/(k_scatt[1]-k_scatt[0])
         print(f"effective range is {effective_range}")
 
     # Plot the original psi and the fitted linear function
     compare = True
     if compare == True:
+        plt.figure(figsize=(10, 8)) # set figure size
 
-        plt.title(f"Psi with V(r), delta = {phase}")
-        plt.plot(xs, psi_scatt, label=f'Psi with V(r)')
-        plt.plot(xs, lambda_scatt(xs,A_scatt_fit,delta_scatt_fit), label=f'Fit of psi with V(r)')
+        plt.plot(xs[::1000], psi_scatt[::1000], label=f'$\Psi(r)$')
+        plt.plot(xs[::1000], lambda_scatt(xs[::1000],A_scatt_fit,delta_scatt_fit), label=f'Fit of $\Psi(r)$')
         #print(f"max of psi_scatt is {np.max(psi_scatt)}, minimum = {np.min(psi_scatt)}, mean = {np.mean(psi_scatt)}")
         #print(f"max of lambda_scatt(xs,A_scatt_fit,delta_scatt_fit) is {np.max(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, minimum = {np.min(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, mean = {np.mean(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}")
 
-        plt.plot(xs, psi_0, color='red', label='Psi without V(r)')
-        plt.plot(xs_0_fit, lambda_zero(xs_0_fit,A_zero_fit,delta_zero_fit), label=f'Fit of psi without V(r)')
+        plt.plot(xs[::1000], psi_0[::1000], color='red', label=f'$\Psi(r) \quad [V(r)=0]$')
+        plt.plot(xs_0_fit[::1000], lambda_zero(xs_0_fit[::1000],A_zero_fit,delta_zero_fit), label=f'Fit of $\Psi(r) \quad [V(r)=0]$')
         # print(f"max of psi_0 is {np.max(psi_0)}, minimum = {np.min(psi_0)}, mean = {np.mean(psi_0)}")
         # print(f"max of lambda_zero(xs,A_zero_fit,delta_zero_fit) is {np.max(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, minimum = {np.min(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, mean = {np.mean(lambda_zero(xs,A_zero_fit,delta_zero_fit))}")
 
-        plt.xlabel('x [fm^{-1}]')
-        plt.ylabel('Psi(x)')
+        plt.xlabel(r'$r$ $[fm]$')
+        plt.ylabel(r'$\Psi(r)$')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'Psi_E={Ei}.pdf')
+        plt.savefig(f'kcotdelta/Psi_E={Ei}.pdf')
         #plt.show()
         plt.close()
 
@@ -489,49 +504,54 @@ for i, Ei in enumerate(E_scatt):
 plot_scatt = True
 
 kcotdelta = k_scatt*(1/np.tan(deltas))
+latex_equation = r"$a_0=-\frac{ 1 }{k \cdot \cot(\delta)}\Bigg \vert_{{k=0}} =$" + str(round(scattering_length,5))
 if plot_scatt == True:
-    plt.scatter(0, kcotdelta[0], label=f'Scattering length = -1/k*cotdelta = {scattering_length}')  # aggiungere "calcolato in k \sim 0"
+    plt.figure(figsize=(10, 8)) # set figure size
+    plt.scatter(0, kcotdelta[0], label = latex_equation)  # aggiungere "calcolato in k \sim 0"
 
-    plt.plot(k_scatt, kcotdelta, label='kcotdelta')
-    plt.xlabel('k [fm^{-1}]')
-    plt.ylabel('kcotdelta ')
+    plt.plot(k_scatt, kcotdelta, label=r'$k \cdot \cot(\delta)$')
+    plt.xlabel(r'$k$ [$fm^{-1}$]')
+    plt.ylabel(r'$k \cdot \cot(\delta)$')
     plt.ylim(np.min(kcotdelta-1), np.max(kcotdelta+1))
     plt.legend()
     plt.grid(True)
-    plt.savefig('kcotdelta(k).pdf')
+    plt.savefig('kcotdelta/kcotdelta(k).pdf')
     plt.show()
 
 
 plot_potential = False
 
 if plot_potential == True:
-    plt.plot(xs, V(xs), label='V(r) [MeV]')
-    plt.xlabel('x [fm^{-1}]')
-    plt.ylabel('V(r) MeV')
+    plt.figure(figsize=(10, 8)) # set figure size
+
+    plt.plot(xs, V(xs), label=r'$V(r)$ \\quad [$MeV$]')
+    plt.xlabel(r'$r$ [$fm$]')
+    plt.ylabel(r'$V(r)$ $MeV$')
     plt.ylim(np.min(V(xs)-2), np.max(V(xs)+2))
     plt.legend()
     plt.grid(True)
-    plt.savefig('V(r).pdf')
+    plt.savefig('kcotdelta/V(r).pdf')
     plt.show()
 
 # Plot the original psi and the fitted linear function
 compare = False
 if compare == True:
+    plt.figure(figsize=(10, 8)) # set figure size
 
     plt.title(f"Psi with V(r)")
-    plt.plot(xs, psi_scatt, label=f'Psi with V(r)')
-    plt.plot(xs_scatt_fit, lambda_scatt(xs_scatt_fit,A_scatt_fit,delta_scatt_fit), label=f'Fit of psi with V(r)')
+    plt.plot(xs, psi_scatt, label=r'$\\Psi$ with $V(r)$')
+    plt.plot(xs_scatt_fit, lambda_scatt(xs_scatt_fit,A_scatt_fit,delta_scatt_fit), label=r'Fit of \\Psi with V(r)')
     print(f"max of psi_scatt is {np.max(psi_scatt)}, minimum = {np.min(psi_scatt)}, mean = {np.mean(psi_scatt)}")
     print(f"max of lambda_scatt(xs,A_scatt_fit,delta_scatt_fit) is {np.max(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, minimum = {np.min(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}, mean = {np.mean(lambda_scatt(xs,A_scatt_fit,delta_scatt_fit))}")
 
-    plt.plot(xs, psi_0, color='red', label='Psi without V(r)')
-    plt.plot(xs_0_fit, lambda_zero(xs_0_fit,A_zero_fit,delta_zero_fit), label=f'Fit of psi without V(r)')
+    plt.plot(xs, psi_0, color='red', label=r'$\\Psi$ without $V(r)$')
+    plt.plot(xs_0_fit, lambda_zero(xs_0_fit,A_zero_fit,delta_zero_fit), label=r'Fit of $\\Psi$ without $V(r)$')
     print(f"max of psi_0 is {np.max(psi_0)}, minimum = {np.min(psi_0)}, mean = {np.mean(psi_0)}")
     print(f"max of lambda_zero(xs,A_zero_fit,delta_zero_fit) is {np.max(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, minimum = {np.min(lambda_zero(xs,A_zero_fit,delta_zero_fit))}, mean = {np.mean(lambda_zero(xs,A_zero_fit,delta_zero_fit))}")
 
-    plt.xlabel('x [fm^{-1}]')
-    plt.ylabel('Psi(x)')
+    plt.xlabel(r'$rx$ [$fm$]')
+    plt.ylabel(r'$\\Psi(x)$')
     plt.legend()
     plt.grid(True)
-    plt.savefig('Psi_E=0.pdf')
+    plt.savefig('kcotdelta/Psi_E=0.pdf')
     plt.show()
