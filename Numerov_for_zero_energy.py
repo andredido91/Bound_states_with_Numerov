@@ -11,11 +11,21 @@ from scipy.optimize import curve_fit
 #C0	   = -505.1500
 
 #pot parameters
-C0 = -67.583747
-r_star = 0.77187385 # fm e MeV
+#C0 = -67.583747
+#r_star = 0.77187385 # fm e MeV
+
+# Deuteron LECs lambda = 2 = 1/r*
+#C0 = -142.36782836914
+#Dineutron scattering length fit of C0
+C0 = -104.970684051513 
+r_star = 1/2 # fm e MeV
+
+
 
 # Physical parameters
-m           = 938.919/2.0        # reduced mass in MeV
+#m           = 938.919/2.0        # reduced mass in MeV
+m           = 938.95/2.0        # reduced mass in MeV
+
 hbarc       = 197.327            # (solita costante di struttura)
 twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readial equation (check the reduced radial problem o fQM1)
 
@@ -327,7 +337,7 @@ def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
     
     
 # Try between 10000 and 1000000
-nsteps  = 2000000
+nsteps  = 4000000
 Rmax    = 40
 Rmin    = 0
 
@@ -412,7 +422,7 @@ if plot_potential == True:
     plt.savefig('zero_energy/V(r).pdf')
     plt.close()
 scattering_length = -b_fit/a_fit
-latex_equation1 = r"$a_0 =$" + str(round(scattering_length,4))
+latex_equation1 = r"$a_0 =$" + str(round(scattering_length,4))+ f"\n$a_0^{{target}} = -18.6300$"
 
 # Plot the original psi and the fitted linear function
 plt.plot(xs, psi_scatt, label=r'$\Psi(r)$ at $E = 0$')
@@ -445,8 +455,8 @@ plt.fill_between(xs[::1000],  psi_scatt[::1000]*psi_scatt[::1000], psi_outer[::1
 
 plt.xlabel(r'$r$ [$fm$]')
 plt.ylabel(r'$\Psi(r)$')
-latex_equation2 = r"$r_0 =$" + str(round(eff_range,4))
-plt.text(0.75, 0.05, f'{latex_equation2}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
+latex_equation2 = r"$r_0 =$" + str(round(eff_range,4)) + f"\n$r_0^{{target}}= 1.4910$"
+plt.text(0.55, 0.05, f'{latex_equation2}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
 plt.legend()
 plt.grid(True)
 plt.savefig('zero_energy/Squared_Psi_E=0.pdf')

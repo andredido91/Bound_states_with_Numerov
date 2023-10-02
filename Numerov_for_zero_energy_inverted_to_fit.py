@@ -45,10 +45,12 @@ plt.rcParams.update({
 #C0 = -67.583747
 #r_star = 0.77187385 # fm e MeV
 
-r_star = [10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01]
-
+#r_star = [10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01]
+r_star = [1/2]
 # Physical parameters
-m           = 938.919/2.0        # reduced mass in MeV
+#m           = 938.919/2.0        # reduced mass in MeV
+m           = 938.95/2.0        # as used in NNQS
+
 hbarc       = 197.327            # (solita costante di struttura)
 twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readial equation (check the reduced radial problem o fQM1)
 
@@ -124,7 +126,7 @@ def fit_and_compute_r0_a0(xs, psi_scatt, C0,j):
     plt.xlabel(r'$r \quad [fm]$')
     plt.ylabel(r'$u(r)$')
     plt.legend()
-    plt.text(0.05, 0.05, f'$C_0 =$ {C0:.5f}\n$a_0 =$ {scattering_length:.5f}\n$r_0 =$ {eff_range:.5f}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
+    plt.text(0.05, 0.05, f'$C_0 =$ {C0:.8f}\n$a_0 =$ {scattering_length:.8f}\n$r_0 =$ {eff_range:.8f}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
 
     custom_lines = [Line2D([0], [0], color=cmap(0.), lw=1),
                     Line2D([0], [0], color=cmap(0.2), lw=1)
@@ -219,7 +221,7 @@ def get_wavefunction(E_set,C0, r_star_i, a,b,n,j):
 
     
 
-def numerov(E_set, C0_start, C0_stop, r_star_i, Error_scatt, max_iter):
+def numerov(E_set, C0_start, C0_stop, r_star_i, Error_scatt, max_iter, target_scatt, infinite):
     """
     Perform the Numerov algorithm with energy bisection to find the wavefunction.
 
@@ -247,19 +249,19 @@ def numerov(E_set, C0_start, C0_stop, r_star_i, Error_scatt, max_iter):
             first_cyc   = False
             h           = (Rmax-Rmin)/(nsteps-1)
             xs          = Rmin + (np.arange(nsteps))*h
-            choice = "lower"
-            while choice == "lower":
-                eff_range, scattering_length = get_wavefunction(E, C0_stop, r_star_i, Rmin, Rmax, nsteps,j) # tra -10 e -20 psi cambia segno
-                if scattering_length < 0: 
-                    choice = "lower"
-                    C0_start = C0_stop
-                    C0_stop = 2*C0_stop
-                    print(f"C0 boundary enlarged --> C0 stop = {C0_stop} !! \n \n ")
-                else:
-                    choice = "upper"
-                    print(f"C0 stop fixed to --> C0_stop = {C0_stop} !! \n \n")
-                    C0_save_start = C0_start
-                    C0_save_stop = C0_stop
+            #choice = "lower"
+            #while choice == "lower":
+            #    eff_range, scattering_length = get_wavefunction(E, C0_stop, r_star_i, Rmin, Rmax, nsteps,j) # tra -10 e -20 psi cambia segno
+            #    if scattering_length < target_scatt: 
+            #        choice = "lower"
+            #        C0_start = C0_stop
+            #        C0_stop = 2*C0_stop
+            #        print(f"C0 boundary enlarged --> C0 stop = {C0_stop} !! \n \n ")
+            #    else:
+            #        choice = "upper"
+            #        print(f"C0 stop fixed to --> C0_stop = {C0_stop} !! \n \n")
+            #        C0_save_start = C0_start
+            #        C0_save_stop = C0_stop
             C0_midpoint = C0_start - (C0_start-C0_stop)/2
 
         else:
@@ -268,15 +270,18 @@ def numerov(E_set, C0_start, C0_stop, r_star_i, Error_scatt, max_iter):
         # Standard Numerov algorithm
         eff_range, scattering_length = get_wavefunction(E, C0_midpoint, r_star_i, Rmin, Rmax, nsteps,j) # tra -10 e -20 psi cambia segno
         a_zeroes_rstar += [scattering_length]
-
-        if 1/abs(scattering_length) < Error_scatt:
-            break
+        if infinite == "True":
+            if 1/abs(scattering_length) < Error_scatt:
+                break
+        if infinite == "False":
+            if abs(target_scatt-scattering_length) < Error_scatt:
+                break
         # Check the scattering length to determine the next C0 guess
-        if scattering_length<0:  
+        if scattering_length > target_scatt:                     # > zero for matching a finite scattering length value, <0 for infinite scatt length
             C0_start    = C0_midpoint
             C0_stop     = C0_stop
             print(f"a_0 = {scattering_length} < 0 --> Choose right interval")
-        elif scattering_length > 0:
+        elif scattering_length < target_scatt:                   # < zero for matching a finite scattering length value, >0 for infinite scatt length
             C0_start    = C0_start
             C0_stop     = C0_midpoint
             print(f"a_0 = {scattering_length} > 0 --> Choose left interval")
@@ -339,11 +344,11 @@ if (debug):
 
 
 # Main algorithm
-nsteps  = 1400000
+nsteps  = 2000000
 
-C0_stop          =   -100
-C0_start         =   -0.01
-Error_scatt       =   0.000001           # Error_scatt is the error wanted tollerance on the scattering length error
+C0_stop          =   -106
+C0_start         =   -103
+Error_scatt       =   0.00000001           # Error_scatt is the error wanted tollerance on the scattering length error
 L               =   C0_start - C0_stop
 max_iter        =   int(np.log2(L/Error_scatt)//1)+1
 print(f"max iter = {max_iter}")
@@ -356,11 +361,13 @@ eff_ranges      = []
 scat_lengths    = []
 # Run Numerov algorithm to calculate the scattering state wavefunction, C0, a_0, r_0
 for i, r_star_i in enumerate(r_star):
+    infinite = False
+    target_scatt = -18.6299918
     Rmax            = 40 + 4 * r_star_i
     Rmin            = 0
     h = (Rmax-Rmin)/(nsteps-1)
     xs = Rmin + (np.arange(nsteps))*h    # or (np.arange(n)+0.5 )*h
-    C0_fitted, eff_range, scattering_length, C0_save_start, C0_save_stop =   numerov(E_process, C0_start, C0_stop, r_star_i, Error_scatt, max_iter)
+    C0_fitted, eff_range, scattering_length, C0_save_start, C0_save_stop =   numerov(E_process, C0_start, C0_stop, r_star_i, Error_scatt, max_iter, target_scatt, infinite)
     C0_start        = C0_save_start
     C0_stop         = C0_save_stop
     C0s             += [C0_fitted]

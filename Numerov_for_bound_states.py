@@ -44,8 +44,16 @@ plt.rcParams.update({
 C0 = -67.583747
 r_star = 0.77187385 # fm e MeV
 
+# Deuteron LECs
+#C0 = -142.36782836914
+# Dineutron
+#C0 = -104.970684051513 # Has no bound states
+#r_star = 1/2 # fm e MeV
+
 # Physical parameters
-m           = 938.919/2.0        # reduced mass in MeV
+#m           = 938.919/2.0        # reduced mass in MeV
+m           = 938.95/2.0        # reduced mass in MeV
+
 hbarc       = 197.327            # (solita costante di struttura)
 twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readial equation (check the reduced radial problem o fQM1)
 
@@ -346,7 +354,18 @@ def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
                 E_stop  = E_midpoint
                 print(f"psi[{len(psi)}] = {psi[len(psi)-1]} -> choose upper")
             E_midpoint = E_start - (E_start - E_stop)/2
-    
+        #latex_equation = f"$E_{i}=$" + str(round(E_midpoint,5))
+        # Plot the ground state and scattering state wavefunctions
+        plt.figure(figsize=(10, 8)) # set figure size
+        plt.title(f"Step {i}")
+        plt.plot(xs, psi, label=f'$u(r)$ at $E = {E_midpoint:.6f}$')
+        plt.xlabel(r'$r$ [$fm$]')
+        plt.ylabel(r'$u(r)$')
+        #plt.text(0.60, 0.05, f'{latex_equation}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'bound_states/Psi_step_{i}.pdf')
+        plt.close()
     # Add further checks and normalization of the wavefunction
     # add here the check of how many nodes there are in psi
     # add here psi normalization (int psi^2 = 1)
@@ -411,25 +430,28 @@ psi_ground      =   psi_ground/np.sqrt(np.trapz(psi_ground*psi_ground))
 plot_potential = True
 
 if plot_potential == True:
+    latex_equation = f"$C_0 = {C0}$ \n$r^* = {r_star}$ \n$E_{{gs}} =$" + str(round(E_midpoint,5))
+
     plt.plot(xs, V(xs), label=r'$V(r)$ [$MeV$]')
     plt.xlabel(r'$r$ [$fm$]')
     plt.ylabel(r'$V(r)$ $MeV$')
     plt.ylim(np.min(V(xs)-2), 20)
     plt.legend()
+    plt.text(0.60, 0.05, f'{latex_equation}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
+
     plt.grid(True)
     plt.savefig('bound_states/V(r).pdf')
-    plt.show()
-
+    plt.close()
 
 latex_equation = r"$E_{gs}=$" + str(round(E_midpoint,5))
    
 # Plot the ground state and scattering state wavefunctions
 plt.figure(figsize=(10, 8)) # set figure size
-plt.plot(xs, psi_ground, label=r'$\Psi_{gs}$')
-plt.xlabel(r'$r$ $fm$')
-plt.ylabel(r'$\Psi(r)$')
+plt.plot(xs, psi_ground, label=r'$u_{gs}$')
+plt.xlabel(r'$r$ [$fm$]')
+plt.ylabel(r'$u(r)$')
 plt.text(0.60, 0.05, f'{latex_equation}', transform=plt.gca().transAxes, bbox=dict(facecolor='white', alpha=0.5)) # add box with parameters
 plt.legend()
 plt.grid(True)
 plt.savefig('bound_states/Psi_ground.pdf')
-plt.show()
+plt.close()
