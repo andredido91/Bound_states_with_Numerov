@@ -19,12 +19,12 @@ from scipy.optimize import curve_fit
 #Dineutron scattering length fit of C0
 C0 = -104.970684051513 
 r_star = 1/2 # fm e MeV
-
-
+C0 = -68.37466431002274
+r_star = 0.7662130373761021
 
 # Physical parameters
-#m           = 938.919/2.0        # reduced mass in MeV
-m           = 938.95/2.0        # reduced mass in MeV
+m           = 938.919/2.0        # reduced mass in MeV
+#m           = 938.95/2.0        # reduced mass in MeV
 
 hbarc       = 197.327            # (solita costante di struttura)
 twomu_on_h2 = 2*m/(hbarc**2)     # it has the resuced mass if you want the readial equation (check the reduced radial problem o fQM1)
@@ -61,42 +61,6 @@ def find_index_with_min_difference(vector, x_mid):
 
     return min_index
 
-def bisection_method(V, E_guess, a, b, tol=1e-12, max_iterations=1000):
-    """
-    Find the root of the equation V(x) - E_guess = 0 using the bisection method.
-
-    Parameters:
-    V (callable): The function V(x) for which we want to find the root.
-    E_guess (float): Initial guess for the root.
-    a (float): Left endpoint of the initial interval.
-    b (float): Right endpoint of the initial interval.
-    tol (float): Tolerance (stop when the interval size is less than this).
-    max_iterations (int): Maximum number of iterations.
-
-    Returns:
-    float: Approximation of the root.
-    """
-
-    # Check if the initial endpoints have opposite signs
-    #if V(a) * V(b) >= 0:
-    #    raise ValueError("The function values at the endpoints must have opposite signs.")
-
-    iteration = 0
-    while (b - a) / 2 > tol and iteration < max_iterations:
-        c = (a + b) / 2  # Compute the midpoint
-        V_c = V(c) - E_guess
-
-        # Update the interval
-        if V_c == 0:
-            return c  # Found the exact root
-        elif V_c * V(a) < 0:
-            b = c
-        else:
-            a = c
-
-        iteration += 1
-
-    return (a + b) / 2  # Return the approximation of the root
 
 def standard_numerov(psi_s, xs, n, h, k):
     """
@@ -131,79 +95,6 @@ def standard_numerov(psi_s, xs, n, h, k):
             psi_s[j+1] = (1/a)*(b* psi_s[j]-c* psi_s[j-1])
 
     return psi_s, xs  # Return updated psi_s and xs arrays
-
-
-
-def both_extreme_numerov(psi_s, xs, b, h, k):
-    """
-    Perform the Numerov algorithm for both extreme regions of the differential equation and plot the results.
-
-    Parameters:
-    psi_s (numpy.array): Array to store the solution.
-    xs (numpy.array): Array of x values.
-    b (int): Index to split the array xs into left and right regions.
-    h (float): Step size.
-    k (function): Function representing the coefficient.
-
-    Returns:
-    tuple: Tuple containing the updated psi_s array, xs array, and the difference in logarithmic derivatives.
-    """
-
-    # Split and initialize xs and psi_s into left and right regions
-    xs_L = xs[:b+1]
-    psi_s_L = np.zeros(len(xs_L))
-    psi_s_L[0] = 0
-    psi_s_L[1] = 0.5
-
-    xs_R = xs[b-1:]
-    psi_s_R = np.zeros(len(xs_R))
-    psi_s_R[-1] = 0.5
-    psi_s_R[-2] = 1
-
-    # Perform Numerov algorithm for the left region
-    for j in range(len(psi_s_L)-1):
-        if j < 2:
-            pass
-        else:
-            a           = (1+((h**2)/12)*k(xs[j+1]))
-            b           = 2*(1-((5*(h**2))/12)*k(xs[j]))
-            c           = (1+((h**2)/12)*k(xs[j-1]))
-            psi_s_L[j+1]  = (1/a)*(b* psi_s_L[j]-c* psi_s_L[j-1])
-
-    # Perform Numerov algorithm for the right region
-    for j in range(len(psi_s_R)-1):
-        if j < 2:
-            pass
-        else:
-            inverse_j = len(psi_s_R)-1-j
-            a_inv       = (1+((h**2)/12)*k(xs[inverse_j-1]))
-            b_inv       = 2*(1-((5*(h**2))/12)*k(xs[inverse_j]))
-            c_inv       = (1+((h**2)/12)*k(xs[inverse_j+1]))
-            psi_s_R[inverse_j - 1] = (1/a_inv)*(b_inv* psi_s_R[inverse_j]-c_inv* psi_s_R[inverse_j+1])
-
-    # Compute the difference in logarithmic derivatives and normalize the wave functions
-    dlogpsi_L = (psi_s_L[-1]-psi_s_L[-2])/(h*psi_s_L[-2])
-    dlogpsi_R = (psi_s_R[1]-psi_s_R[0])/(h*psi_s_R[0])
-    alpha = psi_s_L[-1]/psi_s_R[1]
-    psi_s_L = psi_s_L*alpha
-    diff = dlogpsi_L - dlogpsi_R
-    psi_s = np.concatenate((psi_s_L[:-2],psi_s_R), axis = 0)
-    psi_s_L = psi_s_L/np.trapz(psi_s_L)
-    psi_s_R = psi_s_R/np.trapz(psi_s_R)
-    psi_s = psi_s/np.trapz(psi_s)
-
-    # Plot the wave functions
-    plt.plot(xs, psi_s, label=f'psi_s' )
-    plt.plot(xs_L, psi_s_L, label=f'psi_s_L' )
-    plt.plot(xs_R, psi_s_R, label=f'psi_s_R' )
-    plt.xlabel('r')
-    plt.ylabel('psi(r)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    return psi_s, xs, diff
-
 
 def get_wavefunction(E_guess,a,b,n, both_extreme, i_x_mid):
     """
@@ -240,105 +131,12 @@ def get_wavefunction(E_guess,a,b,n, both_extreme, i_x_mid):
     def f(r,psi_s):
         return -k(r)*psi_s
 
-    # Use the appropriate Numerov algorithm based on the choice
-    if both_extreme == False:
-        psi_s, xs = standard_numerov(psi_s, xs, n, h, k)
-        return psi_s, xs
-    if both_extreme == True:
-        psi_s, xs, diff = both_extreme_numerov(psi_s, xs, i_x_mid, h, k)
-        return psi_s, xs, diff
-    
+    psi_s, xs = standard_numerov(psi_s, xs, n, h, k)
+    return psi_s, xs
 
-def numerov(E_start, E_stop, Error_fun, max_iter, both_extreme):
-    """
-    Perform the Numerov algorithm with energy bisection to find the wavefunction.
-
-    Parameters:
-    E_start (float): Initial guess for the energy (lower bound).
-    E_stop (float): Stopping criterion for the energy (upper bound).
-    Error_fun (float): Error tolerance for stopping the iterations.
-    max_iter (int): Maximum number of iterations.
-    both_extreme (bool): Whether to use or not the both extreme Numerov algorithm.
-
-    Returns:
-    tuple: Tuple containing the final energy E_midpoint, the wavefunction psi, and the xs array.
-
-    # add here reference to paper or website of the method is any
-    """
-
-    # Initialize variables and arrays
-    E_midpoint = E_start
-    first_cyc  = True
-    diff_list =  []
-
-    # Iterate through a maximum number of iterations
-    for i in range(max_iter):
-
-        # Setup initial conditions for the iteration
-        if first_cyc:
-            # E_midpoint=E_start
-            first_cyc=False
-            h = (Rmax-Rmin)/(nsteps-1)
-            xs = Rmin + (np.arange(nsteps))*h
-        else:
-            E_midpoint = E_start - (E_start - E_stop)/2
-
-        # Energy bisection to find the right energy level with both extreme Numerov algorithm
-        if both_extreme == True:
-            E_midpoint = E_start - (E_start - E_stop)/2
-
-            x_mid = bisection_method(V, E_midpoint, Rmin, Rmax, tol=1e-12, max_iterations=1000)
-            #print(f"x_mid = {x_mid}, E_midpoint = {E_midpoint}")
-            i_x_mid = find_index_with_min_difference(xs,x_mid)
-            psi, xs, differ = get_wavefunction(E_midpoint, Rmin, Rmax, nsteps, both_extreme, i_x_mid) # tra -10 e -20 psi cambia segno
-            print("E = ",{V(xs[i_x_mid])},"  diff = ",differ, "xs[", i_x_mid, "] =", xs[i_x_mid], "i_x_mid = ", i_x_mid)
-            
-            # Check the difference in logarithmic derivatives to determine the next energy guess
-            if abs(differ) < Error_fun:
-                break
-            if differ > 0:
-                E_start = E_midpoint
-                E_stop  = E_stop
-                print(f"differ = {differ} >0 -> choose lower")
-            elif differ < 0:
-                E_start = E_start
-                E_stop  = E_midpoint
-                print(f"differ = {differ} < 0 -> choose upper")
-            E_midpoint = E_start - (E_start - E_stop)/2
-            diff_list = diff_list + [differ]
-            print(f"{diff_list} \n \n")
-        
-        # Standard Numerov algorithm
-        elif both_extreme == False:
-            i_x_mid = 0
-            psi, xs = get_wavefunction(E_midpoint,Rmin,Rmax, nsteps, both_extreme, i_x_mid) # tra -10 e -20 psi cambia segno
-            print("E = ",E_midpoint,"  Psi[Rmax] = ",psi[-1])
-            if abs(psi[-1]) < Error_fun:
-                break
-
-            # Check the wavefunction at Rmax to determine the next energy guess
-            if psi[-1]>0:  
-                E_start = E_midpoint
-                E_stop  = E_stop
-                print(f"psi[{len(psi)}] = {psi[len(psi)-1]} -> choose lower")
-            elif psi[-1]<0:
-                E_start = E_start
-                E_stop  = E_midpoint
-                print(f"psi[{len(psi)}] = {psi[len(psi)-1]} -> choose upper")
-            E_midpoint = E_start - (E_start - E_stop)/2
-    
-    # Add further checks and normalization of the wavefunction
-    # add here the check of how many nodes there are in psi
-    # add here psi normalization (int psi^2 = 1)
-    return E_midpoint, psi, xs
-        
-        
-    
-    
-    
 # Try between 10000 and 1000000
 nsteps  = 4000000
-Rmax    = 40
+Rmax    = 20
 Rmin    = 0
 
 
@@ -392,7 +190,7 @@ psi_scatt, xs   =   get_wavefunction(E_scatt, Rmin, Rmax, nsteps, both_extreme, 
 # Select data points after x = R for fitting the asymptotical behaviour of psi
 i_node          =   find_index_with_min_difference(psi_scatt[100:],0)
 #psi_scatt       =   psi_scatt/np.sqrt(np.trapz(psi_scatt[:i_node]*psi_scatt[:i_node]))
-R               =   20 #xs[i_node+100]
+R               =   15 #xs[i_node+100]
 xs_fit          =   xs[xs >= R]
 psi_fit         =   psi_scatt[xs >= R]
 
